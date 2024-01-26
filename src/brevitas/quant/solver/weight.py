@@ -29,6 +29,8 @@ class SolveWeightTensorQuantFromEnum(SolveIntQuantFromEnum):
             return TernaryQuant
         elif quant_type == QuantType.BINARY:
             return BinaryQuant
+        elif quant_type == QuantType.SHIFTADD:
+            return ShiftAddQuant
         else:
             raise RuntimeError(f'{quant_type} not recognized.')
 

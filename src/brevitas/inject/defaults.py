@@ -3,3 +3,4 @@
 
 from brevitas.quant.base import *  # noqa
 from brevitas.quant.scaled_int import *  # noqa
+from brevitas.quant.shifted_scaled_int import *  # noqa

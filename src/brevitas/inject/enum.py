@@ -23,6 +23,7 @@ class QuantType(AutoName):
     TERNARY = auto()
     INT = auto()
     FP = auto()
+    SHIFTADD = auto()
 
 
 class RestrictValueType(AutoName):

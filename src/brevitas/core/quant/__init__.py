@@ -16,3 +16,4 @@ from .int import TruncIntQuant
 from .int_base import DecoupledIntQuant
 from .int_base import IntQuant
 from .ternary import TernaryQuant
+from .shiftadd import ShiftAddQuant, ClampedShiftAddQuant

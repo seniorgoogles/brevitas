@@ -80,7 +80,8 @@ __all__ = [
     'MSEAsymmetricScale',
     'MSEWeightZeroPoint',
     'MSEActZeroPoint',
-    'OctavScaling']
+    'OctavScaling',
+    'NarrowIntShiftAddQuant']
 
 
 class MaxStatsScaling(ExtendedInjector):
@@ -494,3 +495,6 @@ class OctavScaling(ExtendedInjector):
     scaling_impl_type = ScalingImplType.STATS
     scaling_stats_op = StatsOp.OCTAV
     max_iter = 30
+
+class NarrowIntShiftAddQuant(ExtendedInjector):
+    pass
