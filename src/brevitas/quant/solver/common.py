@@ -108,6 +108,8 @@ class SolveScalingStatsOpFromEnum(ExtendedInjector):
             return AbsMinMax
         elif scaling_stats_op == StatsOp.PERCENTILE_INTERVAL:
             return PercentileInterval
+        elif scaling_stats_op == StatsOp.OCTAV:
+            return Octav
         else:
             raise RuntimeError(f"{scaling_stats_op} not recognized.")
 

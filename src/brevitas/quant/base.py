@@ -79,7 +79,8 @@ __all__ = [
     'MSESymmetricScale',
     'MSEAsymmetricScale',
     'MSEWeightZeroPoint',
-    'MSEActZeroPoint']
+    'MSEActZeroPoint',
+    'OctavScaling']
 
 
 class MaxStatsScaling(ExtendedInjector):
@@ -485,3 +486,11 @@ class MSEWeightZeroPoint(MSEZeroPoint):
 
 class MSEActZeroPoint(MSEZeroPoint):
     zero_point_impl = ParameterFromRuntimeZeroPoint
+
+
+class OctavScaling(ExtendedInjector):
+    """
+    """
+    scaling_impl_type = ScalingImplType.STATS
+    scaling_stats_op = StatsOp.OCTAV
+    max_iter = 30

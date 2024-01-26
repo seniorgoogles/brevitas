@@ -24,3 +24,4 @@ from .stats_wrapper import _RuntimeStats
 from .stats_wrapper import _Stats
 from .stats_wrapper import DEFAULT_MOMENTUM
 from .stats_wrapper import SCALAR_SHAPE
+from .stats_op import Octav

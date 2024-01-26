@@ -433,3 +433,18 @@ class Int8AccumulatorAwareWeightQuant(AccumulatorAwareWeightQuant):
         >>> conv.quant_weight()
     """
     bit_width = 8
+
+class Int8WeightPerTensorFloatOctav(NarrowIntQuant,
+                               OctavScaling,
+                               PerTensorFloatScaling8bit,
+                               WeightQuantSolver):
+    """
+    @todo Fix comment
+    8-bit narrow per-tensor signed int weight quantizer with per-tensor floating-point scale factor computed
+    from backpropagated statistics of the weight tensor.
+
+    Examples:
+        >>> from brevitas.nn import QuantLinear
+        >>> fc = QuantLinear(10, 5, bias=False, weight_quant=Int8WeightPerTensorFloat)
+    """
+    bit_width = 8

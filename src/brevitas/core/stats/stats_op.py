@@ -542,3 +542,87 @@ class MSE(torch.nn.Module):
                 x = self.input_view_shape_impl(x)
                 self.internal_candidate = self.mse_init_op(x).detach()
             return self.internal_candidate
+
+
+class Octav(brevitas.jit.ScriptModule):
+    """
+        def __init__(
+        self,
+        name,
+        total_bits,
+        max_iter=10,
+        NR_init_value=0.0,
+        scalar_rounding_method=ScalarRoundingMethod.NONE,
+        debug=True,
+        dtype=tf.dtypes.float32,
+        internal_dtype=tf.dtypes.float64,
+    ):
+        super().__init__(name, total_bits, dtype, internal_dtype)
+        self.max_iter = max_iter
+        self.NR_init_value = NR_init_value
+        self.scalar_rounding_method = scalar_rounding_method
+        self.debug = debug
+
+    @tf.function
+    def _step(self, data, s):
+        abs_data = tf.abs(data)
+        abs_data_greater = abs_data > s
+        t1 = tf.math.reduce_sum(tf.where(abs_data_greater, abs_data, 0.0))
+        t2 = (
+            tf.math.pow(tf.constant(4.0, dtype=self.internal_dtype), -self.total_bits)
+            / 3
+            * tf.math.count_nonzero(
+                tf.logical_and(0 < abs_data, abs_data <= s),
+                dtype=self.internal_dtype,
+            )
+        )
+        t3 = tf.math.count_nonzero(abs_data_greater, dtype=self.internal_dtype)
+        return t1 / (t2 + t3)
+
+    # @tf.function(reduce_retracing=True)
+    def _newton_raphson_method(self, data):
+        clipping_scalar = tf.constant(self.NR_init_value, dtype=self.internal_dtype)
+        for _ in tf.range(self.max_iter):
+            clipping_scalar = self._step(data, clipping_scalar)
+        return clipping_scalar
+    """
+    __constants__ = ['stats_reduce_dim', 'keepdim']
+
+    def __init__(self,
+                 bit_width: int,
+                 stats_reduce_dim: Optional[int] = None,
+                 keepdim: bool = False,
+                 dtype: Optional[torch.dtype] = None,
+                 device: Optional[torch.device] = None,
+                 max_iter = 15) -> None:
+        super(Octav, self,).__init__()
+
+        self.stats_reduce_dim = stats_reduce_dim
+        self.init_value = 0.0
+        self.bit_width = bit_width
+        self.max_iter = max_iter
+        self.keepdim = keepdim
+        self.dtype = dtype
+        self.device = device
+
+    def _step(self, data, s):
+        abs_data = torch.abs(data)
+        abs_data_greater = abs_data > s
+
+        # Convert condition to tensor
+        abs_data_greater_tensor = torch.tensor(abs_data_greater)
+
+        t1 = torch.sum(torch.where(abs_data_greater_tensor, abs_data, 0.0))
+        t2 = (torch.pow(torch.tensor(4.0, dtype=self.dtype), -self.bit_width) / 3
+              * torch.nonzero(torch.tensor(0 < abs_data)
+              & torch.tensor(abs_data <= s)).numel())
+
+        t3 = torch.nonzero(abs_data_greater_tensor).numel()
+        return t1 / (t2 + t3)
+    @brevitas.jit.script_method
+    def forward(self, x: Tensor) -> Tensor:
+        clipping_scalar = torch.tensor(self.init_value, dtype=self.dtype)
+        for _ in torch.range(0, self.max_iter):
+            clipping_scalar = self._step(x, clipping_scalar)
+
+        return clipping_scalar

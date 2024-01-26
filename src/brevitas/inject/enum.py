@@ -83,3 +83,4 @@ class StatsOp(AutoName):
     # Typically adopted for asymmetric quantization
     MIN_MAX = auto()
     PERCENTILE_INTERVAL = auto()
+    OCTAV = auto()
