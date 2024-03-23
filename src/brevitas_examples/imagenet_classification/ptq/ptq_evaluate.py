@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import argparse
+from functools import partial
 import os
 import random
 import warnings
@@ -38,6 +39,14 @@ from brevitas_examples.imagenet_classification.utils import validate
 # Ignore warnings about __torch_function__
 warnings.filterwarnings("ignore")
 
+
+def parse_type(v, default_type):
+    if v == 'None':
+        return None
+    else:
+        return default_type(v)
+
+
 model_names = sorted(
     name for name in torchvision.models.__dict__ if name.islower() and not name.startswith("__") and
     callable(torchvision.models.__dict__[name]) and not name.startswith("get_"))
@@ -73,6 +82,8 @@ parser.add_argument(
     choices=model_names,
     help='model architecture: ' + ' | '.join(model_names) + ' (default: resnet18)')
 parser.add_argument(
+    '--dtype', default='float', choices=['float', 'bfloat16'], help='Data type to use')
+parser.add_argument(
     '--target-backend',
     default='fx',
     choices=['fx', 'layerwise', 'flexml'],
@@ -94,7 +105,7 @@ parser.add_argument(
 parser.add_argument(
     '--bias-bit-width',
     default=32,
-    type=int,
+    type=partial(parse_type, default_type=int),
     choices=[32, 16, None],
     help='Bias bit width (default: 32)')
 parser.add_argument(
@@ -168,10 +179,9 @@ add_bool_arg(
 add_bool_arg(
     parser,
     'weight-narrow-range',
-    default=True,
-    help='Narrow range for weight quantization (default: enabled)')
-parser.add_argument(
-    '--gpfq-p', default=1.0, type=float, help='P parameter for GPFQ (default: 0.25)')
+    default=False,
+    help='Narrow range for weight quantization (default: disabled)')
+parser.add_argument('--gpfq-p', default=1.0, type=float, help='P parameter for GPFQ (default: 1.0)')
 parser.add_argument(
     '--quant-format',
     default='int',
@@ -211,27 +221,52 @@ parser.add_argument(
     default=3,
     type=int,
     help='Exponent bit width used with float quantization for activations (default: 3)')
+parser.add_argument(
+    '--accumulator-bit-width',
+    default=None,
+    type=int,
+    help='Accumulator Bit Width for GPFA2Q (default: None)')
+parser.add_argument('--onnx-opset-version', default=None, type=int, help='ONNX opset version')
+parser.add_argument(
+    '--channel-splitting-ratio',
+    default=0.0,
+    type=float,
+    help=
+    'Split Ratio for Channel Splitting. When set to 0.0, Channel Splitting will not be applied. (default: 0.0)'
+)
 add_bool_arg(parser, 'gptq', default=False, help='GPTQ (default: disabled)')
 add_bool_arg(parser, 'gpfq', default=False, help='GPFQ (default: disabled)')
+add_bool_arg(parser, 'gpfa2q', default=False, help='GPFA2Q (default: disabled)')
 add_bool_arg(
-    parser, 'gptq-act-order', default=False, help='GPTQ Act order heuristic (default: disabled)')
-add_bool_arg(
-    parser, 'gpfq-act-order', default=False, help='GPFQ Act order heuristic (default: disabled)')
+    parser, 'gpxq-act-order', default=False, help='GPxQ Act order heuristic (default: disabled)')
 add_bool_arg(parser, 'learned-round', default=False, help='Learned round (default: disabled)')
 add_bool_arg(parser, 'calibrate-bn', default=False, help='Calibrate BN (default: disabled)')
+add_bool_arg(
+    parser,
+    'channel-splitting-split-input',
+    default=False,
+    help='Input Channels Splitting for channel splitting (default: disabled)')
+add_bool_arg(
+    parser,
+    'merge-bn',
+    default=True,
+    help='Merge BN layers before quantizing the model (default: enabled)')
 
 
 def main():
     args = parser.parse_args()
+    dtype = getattr(torch, args.dtype)
 
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
-
     if args.act_quant_calibration_type == 'stats':
         act_quant_calib_config = str(args.act_quant_percentile) + 'stats'
     else:
         act_quant_calib_config = args.act_quant_calibration_type
+
+    if args.act_bit_width == 0:
+        args.act_bit_width = None
 
     config = (
         f"{args.model_name}_"
@@ -246,8 +281,8 @@ def main():
         f"w{args.weight_bit_width}_"
         f"{'gptq_' if args.gptq else ''}"
         f"{'gpfq_' if args.gpfq else ''}"
-        f"{'gptq_act_order_' if args.gptq_act_order else ''}"
-        f"{'gpfq_act_order_' if args.gpfq_act_order else ''}"
+        f"{'gpfa2q_' if args.gpfa2q else ''}"
+        f"{'gpxq_act_order_' if args.gpxq_act_order else ''}"
         f"{'learned_round_' if args.learned_round else ''}"
         f"{'weight_narrow_range_' if args.weight_narrow_range else ''}"
         f"{args.bias_bit_width}bias_"
@@ -258,7 +293,8 @@ def main():
         f"{'mb_' if args.graph_eq_merge_bias else ''}"
         f"{act_quant_calib_config}_"
         f"{args.weight_quant_calibration_type}_"
-        f"{'bnc' if args.calibrate_bn else ''}")
+        f"{'bnc_' if args.calibrate_bn else ''}"
+        f"{'channel_splitting' if args.channel_splitting_ratio else ''}")
 
     print(
         f"Model: {args.model_name} - "
@@ -268,9 +304,10 @@ def main():
         f"Weight bit width: {args.weight_bit_width} - "
         f"GPTQ: {args.gptq} - "
         f"GPFQ: {args.gpfq} - "
+        f"GPFA2Q: {args.gpfa2q} - "
         f"GPFQ P: {args.gpfq_p} - "
-        f"GPTQ Act Order: {args.gptq_act_order} - "
-        f"GPFQ Act Order: {args.gpfq_act_order} - "
+        f"GPxQ Act Order: {args.gpxq_act_order} - "
+        f"GPFA2Q Accumulator Bit Width: {args.accumulator_bit_width} - "
         f"Learned Round: {args.learned_round} - "
         f"Weight narrow range: {args.weight_narrow_range} - "
         f"Bias bit width: {args.bias_bit_width} - "
@@ -281,7 +318,10 @@ def main():
         f"Merge bias in graph equalization: {args.graph_eq_merge_bias} - "
         f"Activation quant calibration type: {act_quant_calib_config} - "
         f"Weight quant calibration type: {args.weight_quant_calibration_type} - "
-        f"Calibrate BN: {args.calibrate_bn}")
+        f"Calibrate BN: {args.calibrate_bn} - "
+        f"Channel Splitting Ratio: {args.channel_splitting_ratio} - "
+        f"Split Input: {args.channel_splitting_split_input} - "
+        f"Merge BN: {args.merge_bn}")
 
     # Get model-specific configurations about input shapes and normalization
     model_config = get_model_config(args.model_name)
@@ -308,6 +348,7 @@ def main():
 
     # Get the model from torchvision
     model = get_torchvision_model(args.model_name)
+    model = model.to(dtype)
 
     # Preprocess the model for quantization
     if args.target_backend == 'flexml':
@@ -315,7 +356,7 @@ def main():
         img_shape = model_config['center_crop_shape']
         model = preprocess_for_flexml_quantize(
             model,
-            torch.ones(1, 3, img_shape, img_shape),
+            torch.ones(1, 3, img_shape, img_shape, dtype=dtype),
             equalize_iters=args.graph_eq_iterations,
             equalize_merge_bias=args.graph_eq_merge_bias,
             merge_bn=not args.calibrate_bn)
@@ -324,17 +365,27 @@ def main():
             model,
             equalize_iters=args.graph_eq_iterations,
             equalize_merge_bias=args.graph_eq_merge_bias,
-            merge_bn=not args.calibrate_bn)
+            merge_bn=args.merge_bn,
+            channel_splitting_ratio=args.channel_splitting_ratio,
+            channel_splitting_split_input=args.channel_splitting_split_input)
     else:
         raise RuntimeError(f"{args.target_backend} backend not supported.")
+
+    # If available, use the selected GPU
+    if args.gpu is not None:
+        torch.cuda.set_device(args.gpu)
+        model = model.cuda(args.gpu)
+        cudnn.benchmark = False
 
     if args.act_equalization is not None:
         print("Applying activation equalization:")
         apply_act_equalization(model, calib_loader, layerwise=args.act_equalization == 'layerwise')
-
+    device = next(iter(model.parameters())).device
     # Define the quantized model
     quant_model = quantize_model(
         model,
+        dtype=dtype,
+        device=device,
         backend=args.target_backend,
         scale_factor_type=args.scale_factor_type,
         bias_bit_width=args.bias_bit_width,
@@ -355,11 +406,6 @@ def main():
         weight_exponent_bit_width=args.weight_exponent_bit_width,
         act_mantissa_bit_width=args.act_mantissa_bit_width,
         act_exponent_bit_width=args.act_exponent_bit_width)
-    # If available, use the selected GPU
-    if args.gpu is not None:
-        torch.cuda.set_device(args.gpu)
-        quant_model = quant_model.cuda(args.gpu)
-        cudnn.benchmark = False
 
     # Calibrate the quant_model on the calibration dataloader
     print("Starting activation calibration:")
@@ -367,11 +413,21 @@ def main():
 
     if args.gpfq:
         print("Performing GPFQ:")
-        apply_gpfq(calib_loader, quant_model, p=args.gpfq_p, act_order=args.gpfq_act_order)
+        apply_gpfq(calib_loader, quant_model, p=args.gpfq_p, act_order=args.gpxq_act_order)
+
+    if args.gpfa2q:
+        print("Performing GPFA2Q:")
+        apply_gpfq(
+            calib_loader,
+            quant_model,
+            p=args.gpfq_p,
+            act_order=args.gpxq_act_order,
+            use_gpfa2q=args.gpfa2q,
+            accumulator_bit_width=args.accumulator_bit_width)
 
     if args.gptq:
         print("Performing GPTQ:")
-        apply_gptq(calib_loader, quant_model, act_order=args.gptq_act_order)
+        apply_gptq(calib_loader, quant_model, act_order=args.gpxq_act_order)
 
     if args.learned_round:
         print("Applying Learned Round:")
@@ -391,7 +447,7 @@ def main():
 
     # Validate the quant_model on the validation dataloader
     print("Starting validation:")
-    validate(val_loader, quant_model)
+    validate(val_loader, quant_model, stable=dtype != torch.bfloat16)
 
     if args.export_onnx_qcdq or args.export_torch_qcdq:
         # Generate reference input tensor to drive the export process
@@ -404,7 +460,7 @@ def main():
         export_name = os.path.join(args.export_dir, config)
         if args.export_onnx_qcdq:
             export_name = export_name + '.onnx'
-            export_onnx_qcdq(model, ref_input, export_name)
+            export_onnx_qcdq(model, ref_input, export_name, opset_version=args.onnx_opset_version)
         if args.export_torch_qcdq:
             export_name = export_name + '.pt'
             export_torch_qcdq(model, ref_input, export_name)

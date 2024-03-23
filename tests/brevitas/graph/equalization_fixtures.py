@@ -20,30 +20,20 @@ MODELS = {
     'shufflenet_v2_x0_5': [0.318, 0.649],
     'mobilenet_v2': [0.161, 0.320],
     'resnet18': [0.487, 0.952],
-    'googlenet': [0.1826, 0.413],
-    'inception_v3': [0.264, 0.6],
+    'googlenet': [0.495, 0.982],
+    'inception_v3': [0.497, 0.989],
     'alexnet': [0.875, 0.875],}
 
 IN_SIZE_CONV = (1, 3, 224, 224)
 IN_SIZE_LINEAR = (1, 224, 3)
 
 
-def equalize_test(model, regions, merge_bias, bias_shrinkage, scale_computation_type):
-    name_to_module = {}
-    name_set = set()
-    for region in regions:
-        for name in region.srcs:
-            name_set.add(name)
-        for name in region.sinks:
-            name_set.add(name)
+def equalize_test(regions, merge_bias, bias_shrinkage, scale_computation_type):
     scale_factors_regions = []
-    for name, module in model.named_modules():
-        if name in name_set:
-            name_to_module[name] = module
     for i in range(3):
         for region in regions:
             scale_factors_region = _cross_layer_equalization(
-                [name_to_module[n] for n in region.srcs], [name_to_module[n] for n in region.sinks],
+                region,
                 merge_bias=merge_bias,
                 bias_shrinkage=bias_shrinkage,
                 scale_computation_type=scale_computation_type)
@@ -311,6 +301,49 @@ def mul_model():
     return ResidualSrcsAndSinkModel
 
 
+@pytest_cases.fixture
+def convgroupconv_model():
+
+    class ConvGroupConvModel(nn.Module):
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.conv = nn.Conv2d(3, 16, kernel_size=3)
+            self.conv_0 = nn.Conv2d(16, 32, kernel_size=1, groups=2)
+            self.conv_1 = nn.Conv2d(32, 64, kernel_size=1, groups=4)
+            self.relu = nn.ReLU()
+
+        def forward(self, x):
+            x = self.conv(x)
+            x = self.relu(x)
+            x = self.conv_0(x)
+            x = self.relu(x)
+            x = self.conv_1(x)
+            return x
+
+    return ConvGroupConvModel
+
+
+@pytest_cases.fixture
+def convtranspose_model():
+
+    class ConvTransposeModel(nn.Module):
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.relu = nn.ReLU()
+            self.conv_0 = nn.ConvTranspose2d(in_channels=3, out_channels=8, kernel_size=3)
+            self.conv_1 = nn.ConvTranspose2d(in_channels=8, out_channels=32, kernel_size=3)
+
+        def forward(self, x):
+            x = self.conv_0(x)
+            x = self.relu(x)
+            x = self.conv_1(x)
+            return x
+
+    return ConvTransposeModel
+
+
 list_of_fixtures = [
     'residual_model',
     'srcsinkconflict_model',
@@ -319,7 +352,9 @@ list_of_fixtures = [
     'convdepthconv_model',
     'linearmha_model',
     'mhalinear_model',
-    'layernormmha_model']
+    'layernormmha_model',
+    'convgroupconv_model',
+    'convtranspose_model']
 
 toy_model = fixture_union('toy_model', list_of_fixtures, ids=list_of_fixtures)
 
