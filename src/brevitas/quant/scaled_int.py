@@ -35,6 +35,7 @@ __all__ = [
     'Int8ActPerTensorFloatBatchQuant2d',
     'Int8WeightPerTensorFloatOctavQuant',
     'Int8AccumulatorAwareWeightQuant',
+    'Int8AccumulatorAwareZeroCenterWeightQuant',
     'Int8WeightNormL2PerChannelFixedPoint']
 
 
