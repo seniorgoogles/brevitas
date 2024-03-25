@@ -12,6 +12,7 @@ from .binary import ClampedBinaryQuant
 from .int import PrescaledRestrictIntQuant
 from .int import PrescaledRestrictIntQuantWithInputBitWidth
 from .int import RescalingIntQuant
+from .int import SparseRescalingIntQuant
 from .int import TruncIntQuant
 from .int_base import DecoupledIntQuant
 from .int_base import IntQuant

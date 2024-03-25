@@ -64,6 +64,7 @@ __all__ = [
     'ParamMinMaxInitScaling',
     'IntQuant',
     'NarrowIntQuant',
+    'SparseNarrowIntQuant',
     'UintQuant',
     'ShiftedMinUintQuant',
     'ShiftedParamFromPercentileUintQuant',
@@ -181,6 +182,18 @@ class NarrowIntQuant(ExtendedInjector):
     narrow_range = True
     signed = True
     zero_point_impl = ZeroZeroPoint
+
+
+class SparseNarrowIntQuant(ExtendedInjector):
+    """
+    """
+    quant_type = QuantType.SPARSE_INT
+    bit_width_impl_type = BitWidthImplType.CONST
+    float_to_int_impl_type = FloatToIntImplType.ROUND
+    narrow_range = True
+    signed = True
+    zero_point_impl = ZeroZeroPoint
+    sparse = True
 
 
 class UintQuant(ExtendedInjector):

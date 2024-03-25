@@ -31,6 +31,8 @@ class SolveWeightTensorQuantFromEnum(SolveIntQuantFromEnum):
             return BinaryQuant
         elif quant_type == QuantType.SHIFTADD:
             return ShiftAddQuant
+        elif quant_type == QuantType.SPARSE_INT:
+            return SparseRescalingIntQuant
         else:
             raise RuntimeError(f'{quant_type} not recognized.')
 

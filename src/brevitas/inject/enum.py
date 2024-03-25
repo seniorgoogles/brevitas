@@ -24,6 +24,7 @@ class QuantType(AutoName):
     INT = auto()
     FP = auto()
     SHIFTADD = auto()
+    SPARSE_INT = auto()
 
 
 class RestrictValueType(AutoName):

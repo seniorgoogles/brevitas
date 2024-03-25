@@ -18,7 +18,8 @@ __all__ = [
     'Int8WeightPerTensorFixedPointMSE',
     'Int8WeightPerChannelFixedPointMSE',
     'Uint8ActPerTensorFixedPointMSE',
-    'Int8ActPerTensorFixedPointMSE']
+    'Int8ActPerTensorFixedPointMSE',
+    'Int8ActPerTensorFixedPointMinMaxInit']
 
 
 class Int8WeightPerTensorFixedPoint(NarrowIntQuant,
@@ -196,3 +197,19 @@ class Int4WeightPerTensorFixedPointDecoupled(WeightPerTensorFloatDecoupledL2Para
     restrict_scaling_impl = PowerOfTwoRestrictValue
     int_scaling_impl = PowerOfTwoIntScaling
     restrict_value_float_to_int_impl = CeilSte
+
+class Int8WeightPerTensorFixedPointSparse(SparseNarrowIntQuant,
+                                    MaxStatsScaling,
+                                    PerTensorPoTScaling8bit,
+                                    WeightQuantSolver):
+    """
+    8-bit narrow per-tensor signed fixed-point weight quantizer with the radix point
+    computed from backpropagated statistics of the weight tensor.
+
+    Examples:
+        >>> from brevitas.nn import QuantLinear
+        >>> fc = QuantLinear(10, 5, bias=False, weight_quant=Int8WeightPerTensorFixedPoint)
+        >>> fc.quant_weight()
+    """
+    bit_width = 8
+    eps_sparsity = 1e-3
