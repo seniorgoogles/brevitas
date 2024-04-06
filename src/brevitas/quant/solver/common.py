@@ -132,6 +132,8 @@ class SolveIntQuantFromEnum(ExtendedInjector):
     def int_quant(quant_type):
         if quant_type == QuantType.INT:
             return IntQuant
+        if quant_type == QuantType.SPARSE_INT:
+            return IntQuant
         else:
             return None
 

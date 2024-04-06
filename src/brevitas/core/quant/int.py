@@ -268,33 +268,33 @@ class SparseRescalingIntQuant(brevitas.jit.ScriptModule):
             int_scaling_impl: Module,
             zero_point_impl: Module,
             bit_width_impl: Module,
-            spares_eps: float = 0.03):
+            sparse_eps: float = 3.0):
         super(SparseRescalingIntQuant, self).__init__()
         self.int_quant = int_quant
         self.scaling_impl = scaling_impl
         self.int_scaling_impl = int_scaling_impl
         self.zero_point_impl = zero_point_impl
         self.msb_clamp_bit_width_impl = bit_width_impl
-        self.sparse_eps = spares_eps
-        print("============= TEST =============")
+        self.sparse_eps = sparse_eps
 
     def sparse(self, tensor, sparse_eps):
-        print("Test sparse")
+        sparsed_tensor = tensor.clone()
         with torch.no_grad():
             mask = abs(tensor) < sparse_eps
-            tensor[mask] = 0
+            sparsed_tensor[mask] = 0.0
 
-            num_of_values = tensor.numel()
-            sparse_percent = (mask.sum() / num_of_values) * 100
+            num_of_values = sparsed_tensor.numel()
+            sparsity = (mask.sum() / num_of_values) * 100
 
-        return tensor, sparse_percent
-
+        return sparsed_tensor, sparsity
     @brevitas.jit.script_method
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         bit_width = self.msb_clamp_bit_width_impl()
         threshold = self.scaling_impl(x)
         int_threshold = self.int_scaling_impl(bit_width)
         scale = threshold / int_threshold
         zero_point = self.zero_point_impl(x, scale, bit_width)
-        y = self.int_quant(scale, zero_point, bit_width, x)
-        return y, scale, zero_point, bit_width
+
+        y, sparsity = self.sparse(x, self.sparse_eps)
+        y = self.int_quant(scale, zero_point, bit_width, y)
+        return y, scale, zero_point, bit_width, sparsity

@@ -193,7 +193,6 @@ class SparseNarrowIntQuant(ExtendedInjector):
     narrow_range = True
     signed = True
     zero_point_impl = ZeroZeroPoint
-    sparse = True
 
 
 class UintQuant(ExtendedInjector):

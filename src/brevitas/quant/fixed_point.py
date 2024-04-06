@@ -212,4 +212,4 @@ class Int8WeightPerTensorFixedPointSparse(SparseNarrowIntQuant,
         >>> fc.quant_weight()
     """
     bit_width = 8
-    eps_sparsity = 1e-3
+    sparse_eps = 1e-3
