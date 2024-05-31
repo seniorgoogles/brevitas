@@ -17,7 +17,6 @@ class NoneWeightQuant(WeightQuantSolver):
     """
     quant_type = QuantType.FP
 
-
 class NoneActQuant(ActQuantSolver):
     """
     Base quantizer used when act_quant=None or input_quant=None or output_quant=None.

@@ -244,12 +244,13 @@ class QuantInputOutputLayer(QuantOutputMixin, QuantInputMixin, QuantLayerMixin):
             return None
 
 
-class QuantWeightBiasInputOutputLayer(QuantBiasMixin, QuantWeightMixin, QuantInputOutputLayer):
+class QuantWeightBiasInputOutputLayer(QuantBiasMixin, QuantWeightMixin, SparseWeightMixin, QuantInputOutputLayer):
     __metaclass__ = ABCMeta
 
     def __init__(
             self,
             weight_quant: Optional[WeightQuantType],
+            weight_sparse: Optional[WeightSparseType],
             bias_quant: Optional[BiasQuantType],
             input_quant: Optional[ActQuantType],
             output_quant: Optional[ActQuantType],
@@ -262,8 +263,10 @@ class QuantWeightBiasInputOutputLayer(QuantBiasMixin, QuantWeightMixin, QuantInp
             tie_input_output_quant=False,
             return_quant_tensor=return_quant_tensor,
             **kwargs)
+
         QuantWeightMixin.__init__(self, weight_quant, **kwargs)
         QuantBiasMixin.__init__(self, bias_quant, **kwargs)
+        SparseWeightMixin.__init__(self, weight_sparse, **kwargs)
 
     @abstractmethod
     def inner_forward_impl(self, x: Tensor, quant_weight: Tensor, quant_bias: Optional[Tensor]):
@@ -308,7 +311,12 @@ class QuantWeightBiasInputOutputLayer(QuantBiasMixin, QuantWeightMixin, QuantInp
             return out
 
         quant_input = self.input_quant(inp)
+        sparse_weight = self.sparse_weight(quant_input)
         quant_weight = self.quant_weight(quant_input)
+
+        # Check if quant weight and sparse weight are the same
+        are_equal = torch.equal(quant_weight, sparse_weight)
+        print(f"The tensors are {'equal' if are_equal else 'not equal'}")
 
         if (self.return_quant_tensor or
             (self.is_bias_quant_enabled and

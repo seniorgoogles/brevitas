@@ -12,13 +12,20 @@ from brevitas.proxy.parameter_quant import BiasQuantProxyFromInjector
 from brevitas.proxy.parameter_quant import BiasQuantProxyProtocol
 from brevitas.proxy.parameter_quant import WeightQuantProxyFromInjector
 from brevitas.proxy.parameter_quant import WeightQuantProxyProtocol
+from brevitas.proxy.parameter_sparse import WeightSparseProxyFromInjector
+from brevitas.proxy.parameter_sparse import WeightSparseProxyProtocol
+
 from brevitas.quant import NoneBiasQuant
 from brevitas.quant import NoneWeightQuant
 from brevitas.quant_tensor import QuantTensor
 
+from brevitas.sparse import NoneWeightSparse
+
 from .base import QuantProxyMixin
+from .base import SparseProxyMixin
 
 WeightQuantType = Union[WeightQuantProxyProtocol, Type[Injector], Type[ExtendedInjector]]
+WeightSparseType = Union[WeightSparseProxyProtocol, Type[Injector], Type[ExtendedInjector]]
 BiasQuantType = Union[BiasQuantProxyProtocol, Type[Injector], Type[ExtendedInjector]]
 
 
@@ -35,6 +42,7 @@ class QuantWeightMixin(QuantProxyMixin):
             proxy_prefix='weight_',
             **kwargs)
         self._cached_sub_tensor_slice_list_modules = None
+        print(f"QuantWeightMixin {kwargs}")
 
     @property
     @abstractmethod
@@ -227,3 +235,97 @@ class QuantBiasMixin(QuantProxyMixin):
         if hasattr(self, 'bias_quant') and name == 'bias':
             self.bias_quant.init_tensor_quant()
             self.bias_quant.to(self.bias.device)
+
+
+class SparseWeightMixin(SparseProxyMixin):
+    __metaclass__ = ABCMeta
+
+    def __init__(self, weight_sparse: Optional[WeightSparseType], **kwargs):
+        SparseProxyMixin.__init__(
+            self,
+            sparse=weight_sparse,
+            proxy_protocol=WeightSparseProxyProtocol,
+            none_sparse_injector=NoneWeightSparse,
+            kwargs_prefix='weight_',
+            proxy_prefix='weight_',
+            **kwargs)
+        self._cached_sub_tensor_slice_list_modules = None
+        print(f"QuantSparseMixin {kwargs}")
+
+    @property
+    @abstractmethod
+    def output_channel_dim(self) -> int:
+        pass
+
+    @property
+    def is_weight_sparse_enabled(self):
+        return self.weight_sparse.is_sparse_enabled
+
+    #todo: Why this function is not used?
+    @property
+    def sparse_first(self):
+        return self.weight_sparse.sparse_first
+
+    def sparse_weight(
+            self,
+            subtensor_slice_list: List[Optional[Tuple[int, int]]] = None):
+
+
+        '''
+        weights_to_quantize = self.weight
+        if not self.weight_quant.is_quant_enabled and hasattr(self, 'weight_orig'):
+            weights_to_quantize = self.weight_orig
+        if subtensor_slice_list is not None:
+            # prepare the quantizer for a subtensor input, if any modifications are required
+            # we set a list of tuples rather than a list of slices so that it's jit friendly
+            # slices generation is handled by each module internally
+
+            # we cache which modules require the attribute
+            if self._cached_sub_tensor_slice_list_modules is not None:
+                for m in self._cached_sub_tensor_slice_list_modules:
+                    m.subtensor_slice_list = subtensor_slice_list
+            else:
+                self._cached_sub_tensor_slice_list_modules = []
+                for m in self.weight_quant.modules():
+                    if hasattr(m, 'subtensor_slice_list'):
+                        self._cached_sub_tensor_slice_list_modules.append(m)
+                        m.subtensor_slice_list = subtensor_slice_list
+            # generate slices for the weight tensor based on the list passed in
+            weight_slice_tuple = tuple(
+                slice(*s) if s is not None else slice(s) for s in subtensor_slice_list)
+        else:
+            weight_slice_tuple = slice(None)
+        if self.weight_quant_requires_quant_input:
+            if self.is_weight_quant_enabled:
+                if quant_input is None:
+                    input_bit_width = self.quant_input_bit_width()
+                    input_is_signed = self.is_quant_input_signed
+                else:
+                    input_bit_width = quant_input.bit_width
+                    input_is_signed = quant_input.signed
+                assert input_bit_width is not None, "Input bit-width needs to be specified."
+                assert input_is_signed is not None, "Input sign needs to be specified."
+            else:
+                input_bit_width = None
+                input_is_signed = None
+            out = self.weight_quant(
+                weights_to_quantize[weight_slice_tuple], input_bit_width, input_is_signed)
+        else:
+            out = self.weight_quant(weights_to_quantize[weight_slice_tuple])
+        if subtensor_slice_list is not None:
+            # Restore the quantizer behaviour to full tensor quantization
+            # The modules to slice should have been cached already at this point
+            assert self._cached_sub_tensor_slice_list_modules is not None, "Missing cache of modules to slice."
+            for m in self._cached_sub_tensor_slice_list_modules:
+                m.subtensor_slice_list = [None]
+        return out
+        '''
+
+        return self.weight
+
+
+    def register_parameter(self, name, value):
+        super(SparseWeightMixin, self).register_parameter(name, value)
+        if hasattr(self, 'weight_sparse') and name == 'weight':
+            self.weight_sparse.init_tensor_quant()
+            self.weight_sparse.to(self.weight.device)

@@ -29,6 +29,7 @@ class QuantLinear(QuantWBIOL, Linear):
             out_features: int,
             bias: Optional[bool] = True,
             weight_quant: Optional[WeightQuantType] = Int8WeightPerTensorFloat,
+            weight_sparse: Optional[Type] = None,
             bias_quant: Optional[BiasQuantType] = None,
             input_quant: Optional[ActQuantType] = None,
             output_quant: Optional[ActQuantType] = None,
@@ -40,6 +41,7 @@ class QuantLinear(QuantWBIOL, Linear):
         QuantWBIOL.__init__(
             self,
             weight_quant=weight_quant,
+            weight_sparse=weight_sparse,
             bias_quant=bias_quant,
             input_quant=input_quant,
             output_quant=output_quant,

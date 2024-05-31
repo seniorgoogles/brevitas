@@ -358,3 +358,32 @@ class QuantRecurrentLayerMixin(ExportMixin):
         else:
             proxy = proxy.fused_activation_quant_proxy
         return proxy
+
+
+class SparseProxyMixin(object):
+    __metaclass__ = ABCMeta
+
+    def __init__(
+            self,
+            sparse,
+            proxy_protocol,
+            none_sparse_injector,
+            proxy_prefix: str,
+            kwargs_prefix: str,
+            **kwargs):
+        proxy_name = proxy_prefix + 'sparse'
+        if sparse is None:
+            sparse_injector = none_sparse_injector.let(**filter_kwargs(kwargs_prefix, kwargs))
+            sparse = sparse_injector.proxy_class(self, sparse_injector)
+        elif isclass(sparse) and issubclass(sparse, (Injector, ExtendedInjector)):
+            sparse_injector = sparse
+            sparse_injector = sparse_injector.let(**filter_kwargs(kwargs_prefix, kwargs))
+            sparse = sparse_injector.proxy_class(self, sparse_injector)
+        else:
+            if not isinstance(sparse, proxy_protocol):
+                raise RuntimeError(
+                    "The quantizer passed does not adhere to the quantization protocol.")
+            sparse.add_tracked_module(self)
+            if filter_kwargs(kwargs_prefix, kwargs):
+                warn('Keyword arguments are being passed but they not being used.')
+        setattr(self, proxy_name, sparse)

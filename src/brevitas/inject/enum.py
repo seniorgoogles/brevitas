@@ -25,6 +25,13 @@ class QuantType(AutoName):
     FP = auto()
     SHIFTADD = auto()
 
+class SparseType(AutoName):
+    """
+
+    """
+    NONE = auto()
+    EPS = auto()
+    RANDOM = auto()
 
 class RestrictValueType(AutoName):
     """

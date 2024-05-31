@@ -11,3 +11,5 @@ from .parameter import BiasQuantType
 from .parameter import QuantBiasMixin
 from .parameter import QuantWeightMixin
 from .parameter import WeightQuantType
+from .parameter import SparseWeightMixin
+from .parameter import WeightSparseType

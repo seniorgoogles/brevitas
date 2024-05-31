@@ -19,6 +19,7 @@ from .quant_layer import ActQuantType
 from .quant_layer import BiasQuantType
 from .quant_layer import QuantWeightBiasInputOutputLayer as QuantWBIOL
 from .quant_layer import WeightQuantType
+from .quant_layer import WeightSparseType
 
 __all__ = ['QuantConv1d', 'QuantConv2d']
 
@@ -37,6 +38,7 @@ class QuantConv1d(QuantWBIOL, Conv1d):
             padding_mode: str = 'zeros',
             bias: Optional[bool] = True,
             weight_quant: Optional[WeightQuantType] = Int8WeightPerTensorFloat,
+            weight_sparse: Optional[WeightSparseType] = None,
             bias_quant: Optional[BiasQuantType] = None,
             input_quant: Optional[ActQuantType] = None,
             output_quant: Optional[ActQuantType] = None,
@@ -66,6 +68,7 @@ class QuantConv1d(QuantWBIOL, Conv1d):
         QuantWBIOL.__init__(
             self,
             weight_quant=weight_quant,
+            weight_sparse=weight_sparse,
             bias_quant=bias_quant,
             input_quant=input_quant,
             output_quant=output_quant,
@@ -131,6 +134,7 @@ class QuantConv2d(QuantWBIOL, Conv2d):
             padding_mode: str = 'zeros',
             bias: Optional[bool] = True,
             weight_quant: Optional[WeightQuantType] = Int8WeightPerTensorFloat,
+            weight_sparse: Optional[WeightSparseType] = None,
             bias_quant: Optional[BiasQuantType] = None,
             input_quant: Optional[ActQuantType] = None,
             output_quant: Optional[ActQuantType] = None,
@@ -160,6 +164,7 @@ class QuantConv2d(QuantWBIOL, Conv2d):
         QuantWBIOL.__init__(
             self,
             weight_quant=weight_quant,
+            weight_sparse=weight_sparse,
             bias_quant=bias_quant,
             input_quant=input_quant,
             output_quant=output_quant,
