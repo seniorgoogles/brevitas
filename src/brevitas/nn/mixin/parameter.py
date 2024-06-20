@@ -266,11 +266,32 @@ class SparseWeightMixin(SparseProxyMixin):
     def sparse_first(self):
         return self.weight_sparse.sparse_first
 
-    def sparse_weight(
-            self,
-            subtensor_slice_list: List[Optional[Tuple[int, int]]] = None):
+    def sparse_weight(self, subtensor_slice_list: List[Optional[Tuple[int, int]]] = None):
 
+        weights_to_sparse = self.weight
 
+        # Check if sparsing is enabled
+        if not self.weight_sparse.is_sparse_enabled and hasattr(self, 'weight_orig'):
+            weights_to_sparse = self.weight_orig
+        if subtensor_slice_list is not None:
+            # prepare the quantizer for a subtensor input, if any modifications are required
+            # we set a list of tuples rather than a list of slices so that it's jit friendly
+            # slices generation is handled by each module internally
+
+            # we cache which modules require the attribute
+            if self._cached_sub_tensor_slice_list_modules is not None:
+                for m in self._cached_sub_tensor_slice_list_modules:
+                    m.subtensor_slice_list = subtensor_slice_list
+            else:
+                self._cached_sub_tensor_slice_list_modules = []
+                for m in self.weight_sparse.modules():
+                    if hasattr(m, 'subtensor_slice_list'):
+                        self._cached_sub_tensor_slice_list_modules.append(m)
+                        m.subtensor_slice_list = subtensor_slice_list
+            # generate slices for the weight tensor based on the list passed in
+            weight_slice_tuple = tuple(slice(*s) if s is not None else slice(s) for s in subtensor_slice_list)
+        else:
+            weight_slice_tuple = slice(None)
         '''
         weights_to_quantize = self.weight
         if not self.weight_quant.is_quant_enabled and hasattr(self, 'weight_orig'):
@@ -321,7 +342,7 @@ class SparseWeightMixin(SparseProxyMixin):
         return out
         '''
 
-        return self.weight
+        return weights_to_sparse
 
 
     def register_parameter(self, name, value):

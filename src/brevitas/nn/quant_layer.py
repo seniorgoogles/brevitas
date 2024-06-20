@@ -312,11 +312,11 @@ class QuantWeightBiasInputOutputLayer(QuantBiasMixin, QuantWeightMixin, SparseWe
 
         quant_input = self.input_quant(inp)
         sparse_weight = self.sparse_weight(quant_input)
-        quant_weight = self.quant_weight(quant_input)
+        quant_weight = self.quant_weight(sparse_weight)
 
         # Check if quant weight and sparse weight are the same
-        are_equal = torch.equal(quant_weight, sparse_weight)
-        print(f"The tensors are {'equal' if are_equal else 'not equal'}")
+        #are_equal = torch.equal(quant_weight, sparse_weight)
+        #print(f"The tensors are {'equal' if are_equal else 'not equal'}")
 
         if (self.return_quant_tensor or
             (self.is_bias_quant_enabled and
