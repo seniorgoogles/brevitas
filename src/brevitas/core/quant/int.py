@@ -147,14 +147,18 @@ class RescalingIntQuant(brevitas.jit.ScriptModule):
         self.msb_clamp_bit_width_impl = bit_width_impl
 
     @brevitas.jit.script_method
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         bit_width = self.msb_clamp_bit_width_impl()
         threshold = self.scaling_impl(x)
         int_threshold = self.int_scaling_impl(bit_width)
         scale = threshold / int_threshold
         zero_point = self.zero_point_impl(x, scale, bit_width)
+
+        # Get the number of 0.0 values in the tensor in percentage
+        sparsity = torch.sum(x == 0.0).item() / x.numel() * 100
+
         y = self.int_quant(scale, zero_point, bit_width, x)
-        return y, scale, zero_point, bit_width
+        return y, scale, zero_point, bit_width, sparsity
 
 
 class DecoupledRescalingIntQuant(brevitas.jit.ScriptModule):
@@ -276,15 +280,23 @@ class SparseRescalingIntQuant(brevitas.jit.ScriptModule):
         self.zero_point_impl = zero_point_impl
         self.msb_clamp_bit_width_impl = bit_width_impl
         self.sparse_eps = sparse_eps
+        self.quantize_values = True
 
-    def sparse(self, tensor, sparse_eps):
+    def sparse(self, tensor):
+
         sparsed_tensor = tensor.clone()
         with torch.no_grad():
-            mask = abs(tensor) < sparse_eps
+            # Calculate the threshold for the top 10% of the absolute values
+            threshold = torch.quantile(abs(tensor), self.sparse_eps)
+
+            # Create a mask for values below the threshold
+            mask = abs(tensor) < threshold
             sparsed_tensor[mask] = 0.0
 
             num_of_values = sparsed_tensor.numel()
-            sparsity = (mask.sum() / num_of_values) * 100
+            sum_of_sparsed_values = mask.sum()
+
+            sparsity = (sum_of_sparsed_values / num_of_values) * 100
 
         return sparsed_tensor, sparsity
     @brevitas.jit.script_method
@@ -295,6 +307,10 @@ class SparseRescalingIntQuant(brevitas.jit.ScriptModule):
         scale = threshold / int_threshold
         zero_point = self.zero_point_impl(x, scale, bit_width)
 
-        y, sparsity = self.sparse(x, self.sparse_eps)
-        y = self.int_quant(scale, zero_point, bit_width, y)
+        y, sparsity = self.sparse(x)
+
+        # If quantization is enabled, do also quantization
+        if self.quantize_values:
+            y = self.int_quant(scale, zero_point, bit_width, y)
+
         return y, scale, zero_point, bit_width, sparsity

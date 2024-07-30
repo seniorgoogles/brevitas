@@ -99,10 +99,7 @@ class WeightQuantProxyFromInjector(ParameterQuantProxyFromInjector, WeightQuantP
             sparsity = None
 
             impl = self.export_handler if self.export_mode else self.tensor_quant
-            if self.is_sparse_enabled == True:
-                out, scale, zero_point, bit_width, sparsity = impl(x)
-            else:
-                out, scale, zero_point, bit_width = impl(x)
+            out, scale, zero_point, bit_width, sparsity = impl(x)
 
             return QuantTensor(out, scale, zero_point, bit_width, sparsity, self.is_signed, self.training)
         else:  # quantization disabled

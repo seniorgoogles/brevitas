@@ -124,8 +124,8 @@ class QuantProxyFromInjector(ExportMixin, nn.Module, QuantProxyProtocol):
     def rounding_mode(self):
         return _rounding_mode(self.quant_injector)
 
-    def is_sparse_enabled(self):
-        return not self.disable_sparse and self.tensor_quant is not None
+    def is_pruning_enabled(self):
+        return not self.disable_pruning and self.tensor_quant is not None
 
     def add_tracked_module(self, module: nn.Module) -> None:
         if module is not None:
