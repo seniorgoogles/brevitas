@@ -329,33 +329,39 @@ class SparseRescalingIntQuant(brevitas.jit.ScriptModule):
             int_scaling_impl: Module,
             zero_point_impl: Module,
             bit_width_impl: Module,
-            sparse_eps: float = 3.0):
+            quantile: float = 0.1,
+            disable_prune: bool = False,
+            disable_quant: bool = False,
+            prune_first: bool = True):
         super(SparseRescalingIntQuant, self).__init__()
         self.int_quant = int_quant
         self.scaling_impl = scaling_impl
         self.int_scaling_impl = int_scaling_impl
         self.zero_point_impl = zero_point_impl
         self.msb_clamp_bit_width_impl = bit_width_impl
-        self.sparse_eps = sparse_eps
-        self.quantize_values = True
-
-    def sparse(self, tensor):
+        self.quantile = quantile
+        self.disable_prune = disable_prune
+        self.disable_quant = disable_quant
+        self.prune_first = prune_first
+    def prune(self, tensor):
 
         sparsed_tensor = tensor.clone()
         with torch.no_grad():
             # Calculate the threshold for the top 10% of the absolute values
-            threshold = torch.quantile(abs(tensor), self.sparse_eps)
+            threshold = torch.quantile(abs(tensor), self.quantile)
 
             # Create a mask for values below the threshold
             mask = abs(tensor) < threshold
             sparsed_tensor[mask] = 0.0
+            
+            # For debugging purposes, calculate the sparsity
+            #num_of_values = sparsed_tensor.numel()
+            #sum_of_sparsed_values = mask.sum()
 
-            num_of_values = sparsed_tensor.numel()
-            sum_of_sparsed_values = mask.sum()
+            #sparsity = (sum_of_sparsed_values / num_of_values) * 100
 
-            sparsity = (sum_of_sparsed_values / num_of_values) * 100
-
-        return sparsed_tensor, sparsity
+        return sparsed_tensor
+    
     @brevitas.jit.script_method
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         bit_width = self.msb_clamp_bit_width_impl()
@@ -363,11 +369,111 @@ class SparseRescalingIntQuant(brevitas.jit.ScriptModule):
         int_threshold = self.int_scaling_impl(bit_width)
         scale = threshold / int_threshold
         zero_point = self.zero_point_impl(x, scale, bit_width)
+        
+        x_tmp = x.clone()
 
-        y, sparsity = self.sparse(x)
+        # If pruning first is set
+        if self.prune_first == True:
 
-        # If quantization is enabled, do also quantization
-        if self.quantize_values:
-            y = self.int_quant(scale, zero_point, bit_width, y)
+            # Check if pruning is disabled, if not do pruning
+            if self.disable_prune == False:
+                x_tmp = self.prune(x_tmp)
+            
+            # Check if quantization is disabled, if not do quantization
+            if self.disable_quant == False:
+                x_tmp = self.int_quant(scale, zero_point, bit_width, x_tmp)
+                
+        # If quantization shall be done first and quantization is active, do quantization first
+        elif self.prune_first == False:
+            
+            # Check if quantization is disabled, if not do quantization
+            if self.disable_quant == False:
+                x_tmp = self.int_quant(scale, zero_point, bit_width, x_tmp)
+            
+            # If pruning shall be done, do pruning
+            if self.disable_prune == False:
+                x_tmp = self.prune(x_tmp)
+         
+        y = x_tmp
+    
+        return y, scale, zero_point, bit_width
 
-        return y, scale, zero_point, bit_width, sparsity
+class SparseThresholdRescalingIntQuant(brevitas.jit.ScriptModule):
+
+    """
+    """
+    def __init__(
+            self,
+            int_quant: Module,
+            scaling_impl: Module,
+            int_scaling_impl: Module,
+            zero_point_impl: Module,
+            bit_width_impl: Module,
+            threshold: float = 0.1,
+            disable_prune: bool = False,
+            disable_quant: bool = False,
+            prune_first: bool = True):
+        super(SparseThresholdRescalingIntQuant, self).__init__()
+        self.int_quant = int_quant
+        self.scaling_impl = scaling_impl
+        self.int_scaling_impl = int_scaling_impl
+        self.zero_point_impl = zero_point_impl
+        self.msb_clamp_bit_width_impl = bit_width_impl
+        self.threshold = threshold
+        self.disable_prune = disable_prune
+        self.disable_quant = disable_quant
+        self.prune_first = prune_first
+    def prune(self, tensor):
+
+        sparsed_tensor = tensor.clone()
+        with torch.no_grad():
+            # Calculate the threshold from the max value of the weights
+            threshold = torch.max(tensor) * self.threshold
+
+            # Create a mask for values below the threshold
+            mask = abs(tensor) < threshold
+            sparsed_tensor[mask] = 0.0
+            
+            # For debugging purposes, calculate the sparsity
+            #num_of_values = sparsed_tensor.numel()
+            #sum_of_sparsed_values = mask.sum()
+
+            #sparsity = (sum_of_sparsed_values / num_of_values) * 100
+
+        return sparsed_tensor
+    
+    @brevitas.jit.script_method
+    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
+        bit_width = self.msb_clamp_bit_width_impl()
+        threshold = self.scaling_impl(x)
+        int_threshold = self.int_scaling_impl(bit_width)
+        scale = threshold / int_threshold
+        zero_point = self.zero_point_impl(x, scale, bit_width)
+        
+        x_tmp = x.clone()
+
+        # If pruning first is set
+        if self.prune_first == True:
+
+            # Check if pruning is disabled, if not do pruning
+            if self.disable_prune == False:
+                x_tmp = self.prune(x_tmp)
+            
+            # Check if quantization is disabled, if not do quantization
+            if self.disable_quant == False:
+                x_tmp = self.int_quant(scale, zero_point, bit_width, x_tmp)
+                
+        # If quantization shall be done first and quantization is active, do quantization first
+        elif self.prune_first == False:
+            
+            # Check if quantization is disabled, if not do quantization
+            if self.disable_quant == False:
+                x_tmp = self.int_quant(scale, zero_point, bit_width, x_tmp)
+            
+            # If pruning shall be done, do pruning
+            if self.disable_prune == False:
+                x_tmp = self.prune(x_tmp)
+         
+        y = x_tmp
+    
+        return y, scale, zero_point, bit_width
