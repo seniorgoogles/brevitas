@@ -52,6 +52,7 @@ from brevitas.inject.enum import QuantType
 from brevitas.inject.enum import RestrictValueType
 from brevitas.inject.enum import ScalingImplType
 from brevitas.inject.enum import ScalingPerOutputType
+from brevitas.inject.enum import PruningImplType
 from brevitas.inject.enum import StatsOp
 from brevitas.proxy import DecoupledWeightQuantProxyFromInjector
 from brevitas.proxy import DecoupledWeightQuantWithInputProxyFromInjector
@@ -70,7 +71,8 @@ __all__ = [
     'ParamMinMaxInitScaling',
     'IntQuant',
     'NarrowIntQuant',
-    'SparseNarrowIntQuant',
+    'NarrowIntQuantPruningPercentile',
+    'NarrowIntQuantPruningThreshold',
     'UintQuant',
     'ShiftedMinUintQuant',
     'ShiftedParamFromPercentileUintQuant',
@@ -190,12 +192,24 @@ class NarrowIntQuant(ExtendedInjector):
     zero_point_impl = ZeroZeroPoint
 
 
-class SparseNarrowIntQuant(ExtendedInjector):
+class NarrowIntQuantPruningPercentile(ExtendedInjector):
     """
     """
-    quant_type = QuantType.SPARSE_INT
+    quant_type = QuantType.PRUNING
     bit_width_impl_type = BitWidthImplType.CONST
     float_to_int_impl_type = FloatToIntImplType.ROUND
+    pruning_impl_type = PruningImplType.PERCENTILE
+    narrow_range = True
+    signed = True
+    zero_point_impl = ZeroZeroPoint
+
+class NarrowIntQuantPruningThreshold(ExtendedInjector):
+    """
+    """
+    quant_type = QuantType.PRUNING
+    bit_width_impl_type = BitWidthImplType.CONST
+    float_to_int_impl_type = FloatToIntImplType.ROUND
+    pruning_impl_type = PruningImplType.THRESHOLD
     narrow_range = True
     signed = True
     zero_point_impl = ZeroZeroPoint
