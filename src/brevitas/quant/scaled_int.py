@@ -3,6 +3,7 @@
 
 from brevitas.core.function_wrapper import TensorClamp
 from brevitas.quant.base import *
+from brevitas.quant.base import HQOSymmetricScale
 from brevitas.quant.solver.act import ActQuantSolver
 from brevitas.quant.solver.bias import BiasQuantSolver
 from brevitas.quant.solver.trunc import TruncQuantSolver
@@ -86,7 +87,6 @@ class IntBias(IntQuant, BiasQuantSolver):
     """
     tensor_clamp_impl = TensorClamp
     requires_input_scale = True
-    requires_input_bit_width = True
 
 
 class Int8Bias(IntBias):
@@ -99,7 +99,6 @@ class Int8Bias(IntBias):
         >>> fc = QuantLinear(10, 5, bias=True, bias_quant=Int8Bias)
     """
     bit_width = 8
-    requires_input_bit_width = False
 
 
 class Int16Bias(IntBias):
@@ -112,7 +111,6 @@ class Int16Bias(IntBias):
         >>> fc = QuantLinear(10, 5, bias=True, bias_quant=Int16Bias)
     """
     bit_width = 16
-    requires_input_bit_width = False
 
 
 class Int24Bias(IntBias):
@@ -125,7 +123,6 @@ class Int24Bias(IntBias):
         >>> fc = QuantLinear(10, 5, bias=True, bias_quant=Int16Bias)
     """
     bit_width = 24
-    requires_input_bit_width = False
 
 
 class Int32Bias(IntBias):
@@ -138,7 +135,6 @@ class Int32Bias(IntBias):
         >>> fc = QuantLinear(10, 5, bias=True, bias_quant=Int16Bias)
     """
     bit_width = 32
-    requires_input_bit_width = False
 
 
 class Int8BiasPerTensorFloatInternalScaling(IntQuant,
@@ -154,7 +150,6 @@ class Int8BiasPerTensorFloatInternalScaling(IntQuant,
         >>> fc = QuantLinear(10, 5, bias=True, bias_quant=Int8BiasPerTensorFloatInternalScaling)
     """
     requires_input_scale = False
-    requires_input_bit_width = False
 
 
 class Int8WeightPerTensorFloat(NarrowIntQuant,
@@ -451,10 +446,56 @@ class Int8AccumulatorAwareZeroCenterWeightQuant(AccumulatorAwareZeroCenterWeight
     """
     bit_width = 8
 
-class Int8WeightPerTensorFloatOctavQuant(NarrowIntQuant,
-                                         OctavScaling,
-                                         PerTensorFloatScaling8bit,
-                                         WeightQuantSolver):
+
+class Int8WeightPerTensorFloatHQO(HQOSymmetricScale, Int8WeightPerTensorFloat):
+    """
+    8-bit narrow per-tensor signed int weight quantizer with per-tensor floating-point scale factor computed
+    from HQO local loss.
+
+    Examples:
+        >>> from brevitas.nn import QuantLinear
+        >>> fc = QuantLinear(10, 5, bias=False, weight_quant=Int8WeightPerTensorFloatHQO)
+    """
+    pass
+
+
+class Int8WeightPerChannelFloatHQO(HQOSymmetricScale, Int8WeightPerChannelFloat):
+    """
+    8-bit narrow per-tensor signed int weight quantizer with per-tensor floating-point scale factor computed
+    from HQO local loss.
+
+    Examples:
+        >>> from brevitas.nn import QuantLinear
+        >>> fc = QuantLinear(10, 5, bias=False, weight_quant=Int8WeightPerChannelFloatHQO)
+    """
+    pass
+
+
+class Int8WeightPerTensorFloatHQO(HQOSymmetricScale, Int8WeightPerTensorFloat):
+    """
+    8-bit narrow per-tensor signed int weight quantizer with per-tensor floating-point scale factor computed
+    from HQO local loss.
+
+    Examples:
+        >>> from brevitas.nn import QuantLinear
+        >>> fc = QuantLinear(10, 5, bias=False, weight_quant=Int8WeightPerTensorFloatHQO)
+    """
+    pass
+
+
+class Int8WeightPerChannelFloatHQO(HQOSymmetricScale, Int8WeightPerChannelFloat):
+    """
+    8-bit narrow per-tensor signed int weight quantizer with per-tensor floating-point scale factor computed
+    from HQO local loss.
+
+    Examples:
+        >>> from brevitas.nn import QuantLinear
+        >>> fc = QuantLinear(10, 5, bias=False, weight_quant=Int8WeightPerChannelFloatHQO)
+    """
+    pass
+
+
+class Int8WeightPerTensorFloatOctavQuant(NarrowIntQuant, OctavScaling, PerTensorFloatScaling8bit, WeightQuantSolver):
     """
     @todo Fix comment
     8-bit narrow per-tensor signed int weight quantizer with per-tensor floating-point scale factor computed

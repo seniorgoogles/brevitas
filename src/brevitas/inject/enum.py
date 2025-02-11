@@ -24,6 +24,7 @@ class QuantType(AutoName):
     INT = auto()
     FP = auto()
     SHIFTADD = auto()
+    SPARSE_INT = auto()
 
 
 class RestrictValueType(AutoName):
@@ -66,6 +67,15 @@ class ScalingImplType(AutoName):
     AFFINE_STATS = auto()
     PARAMETER = auto()
     PARAMETER_FROM_STATS = auto()
+
+
+class ScalingPerOutputType(AutoName):
+    """
+
+    """
+    TENSOR = auto()
+    CHANNEL = auto()
+    GROUP = auto()
 
 
 class StatsOp(AutoName):
