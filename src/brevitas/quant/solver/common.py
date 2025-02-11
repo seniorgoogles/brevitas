@@ -13,6 +13,8 @@ from brevitas.core.restrict_val import *
 from brevitas.core.scaling import *
 from brevitas.core.scaling import ScalingImplType
 from brevitas.core.scaling import ScalingPerOutputType
+from brevitas.core.pruning import *
+from brevitas.core.pruning import PruningImplType
 from brevitas.core.stats import *
 from brevitas.inject import ExtendedInjector
 from brevitas.inject import value
@@ -22,6 +24,7 @@ __all__ = [
     'solve_bit_width_impl_from_enum',
     'solve_restrict_value_impl_from_enum',
     'solve_float_to_int_impl_from_enum',
+    'solve_pruning_impl_from_enum',
     'SolveAffineRescalingFromEnum',
     'SolveIntQuantFromEnum',
     'SolveTensorQuantFloatToIntImplFromEnum',
@@ -29,6 +32,7 @@ __all__ = [
     'SolveRestrictScalingImplFromEnum',
     'SolveScalingStatsOpFromEnum',
     'SolveBitWidthImplFromEnum',
+    'SolvePruningImplFromEnum',
     'SolveStatsReduceDimFromEnum',
     'SolveScalingStatsInputViewShapeImplFromEnum',
     'SolveDtypeDeviceFromTrackedParameterList']
@@ -73,6 +77,16 @@ def solve_restrict_value_impl_from_enum(impl_type):
         return PowerOfTwoRestrictValue
     else:
         raise RuntimeError(f"{impl_type} not recognized.")
+    
+def solve_pruning_impl_from_enum(impl_type):
+    if impl_type == PruningImplType.BYPASS:
+        return PruningBypass
+    elif impl_type == PruningImplType.THRESHOLD:
+        return PruningThreshold
+    elif impl_type == PruningImplType.PERCENTILE:
+        return PruningPercentile
+    else:
+        raise RuntimeError(f"{impl_type} not recognized.")
 
 
 class SolveRestrictScalingImplFromEnum(ExtendedInjector):
@@ -88,6 +102,11 @@ class SolveBitWidthImplFromEnum(ExtendedInjector):
     def bit_width_impl(bit_width_impl_type):
         return solve_bit_width_impl_from_enum(bit_width_impl_type)
 
+class SolvePruningImplFromEnum(ExtendedInjector):
+    
+    @value
+    def pruning_impl(pruning_impl_type):
+        return solve_pruning_impl_from_enum(pruning_impl_type)
 
 class SolveScalingStatsOpFromEnum(ExtendedInjector):
 
@@ -133,7 +152,7 @@ class SolveIntQuantFromEnum(ExtendedInjector):
     def int_quant(quant_type):
         if quant_type == QuantType.INT:
             return IntQuant
-        if quant_type == QuantType.SPARSE_INT:
+        if quant_type == QuantType.PRUNING:
             return IntQuant
         else:
             return None

@@ -24,7 +24,7 @@ class QuantType(AutoName):
     INT = auto()
     FP = auto()
     SHIFTADD = auto()
-    SPARSE_INT = auto()
+    PRUNING = auto()
 
 
 class RestrictValueType(AutoName):
@@ -77,6 +77,10 @@ class ScalingPerOutputType(AutoName):
     CHANNEL = auto()
     GROUP = auto()
 
+class PruningImplType(AutoName):
+    BYPASS = auto()
+    THRESHOLD = auto()
+    PERCENTILE = auto()
 
 class StatsOp(AutoName):
     """
@@ -95,3 +99,4 @@ class StatsOp(AutoName):
     MIN_MAX = auto()
     PERCENTILE_INTERVAL = auto()
     OCTAV = auto()
+
