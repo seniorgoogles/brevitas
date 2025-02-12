@@ -275,7 +275,10 @@ class RescalingIntQuantPrune(brevitas.jit.ScriptModule):
         int_scaling_impl: Module,
         zero_point_impl: Module,
         bit_width_impl: Module,
-        pruning_impl: Module) -> None:
+        pruning_impl: Module,
+        enable_prune: bool,
+        enable_quant: bool,
+        prune_first) -> None:
         super(RescalingIntQuantPrune, self).__init__()
         
         self.int_quant = int_quant
@@ -285,6 +288,9 @@ class RescalingIntQuantPrune(brevitas.jit.ScriptModule):
         self.pruning_impl = pruning_impl
         self.msb_clamp_bit_width_impl = bit_width_impl
         self.observer_only = brevitas.jit.Attribute(False, bool)
+        self.enable_prune = enable_prune
+        self.enable_quant = enable_quant
+        self.prune_first = prune_first
         
     @brevitas.jit.script_method
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
@@ -295,7 +301,14 @@ class RescalingIntQuantPrune(brevitas.jit.ScriptModule):
         if self.observer_only:
             y = x
         else:
-            y = self.int_quant(scale, zero_point, bit_width, x)
-            y = self.pruning_impl(y)
             
+            y = x 
+            
+            if self.prune_first:
+                y = y if self.enable_prune is False else self.pruning_impl(y)
+                y = y if self.enable_quant is False else self.int_quant(scale, zero_point, bit_width, y)
+            else:
+                y = y if self.enable_quant is False else self.int_quant(scale, zero_point, bit_width, y)
+                y = y if self.enable_prune is False else self.pruning_impl(y)
+                
         return y, scale, zero_point, bit_width

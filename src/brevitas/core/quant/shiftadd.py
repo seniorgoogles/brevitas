@@ -12,13 +12,26 @@ from brevitas.function.ops_ste import binary_sign_ste
 
 class ShiftAddQuant(brevitas.jit.ScriptModule):
 
-    def __init__(self, scaling_impl: Module, quant_delay_steps: int = 0, allowed_values=[]):
+    def __init__(self, 
+                 # Todo: Adding ShiftAdd Scheme here like for pruning
+                 # int_quant: Module,
+                 scaling_impl: Module,
+                 #zero_point_impl: Module,
+                 bit_width_impl: Module,
+                 quant_delay_steps: int = 0, 
+                 allowed_values=[ -1024, -512, -256, -128, -64, -32, -16, -8, -4, -2, -1, 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]):
         super(ShiftAddQuant, self).__init__()
         self.scaling_impl = scaling_impl
         self.zero_point = StatelessBuffer(torch.tensor(0.0))
+        self.bit_width_impl = bit_width_impl
         self.delay_wrapper = DelayWrapper(quant_delay_steps)
-        self.allowed_values = torch.asarray(allowed_values) # todo add as parameter
-        if self.allowed_values.size()[0] > 0:
+        #self.allowed_values = torch.asarray(allowed_values) # todo add as parameter
+        
+        # Register allowed_values as a buffer so that it moves with the module.
+        allowed_tensor = torch.tensor(allowed_values)
+        self.register_buffer("allowed_values", allowed_tensor)
+
+        if self.allowed_values.numel() == 0:
             raise Exception("There are no allowed values to quantize to.")
 
     def quantize_to_array(self, inputs: Tensor, array: Tensor):
@@ -37,14 +50,17 @@ class ShiftAddQuant(brevitas.jit.ScriptModule):
 
     # Forward path quantizer
     @brevitas.jit.script_method
-    def forward(self, inputs: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        scale = self.scaling_impl(inputs)
-        print(scale)
+    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        scale = self.scaling_impl(x)
+        zero_point = self.zero_point()
+        bit_width = self.bit_width_impl()
+        
+        #print(f"{scale=}")
         # y = x * 0.0001
-
-        y = self.quantize_to_array(inputs, self.allowed_values * scale) # todo add scaling with: self.allowed_values * scale
-
-        return y, scale, self.zero_point(), self.bit_width()
+        y = self.quantize_to_array(x, self.allowed_values * 1.0) # todo add scaling with: self.allowed_values * scale
+        #raise Exception("Stop here")
+        
+        return y, scale, zero_point, bit_width
 
 
 class ClampedShiftAddQuant(brevitas.jit.ScriptModule):

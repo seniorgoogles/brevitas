@@ -93,7 +93,7 @@ __all__ = [
     'MSEWeightZeroPoint',
     'MSEActZeroPoint',
     'OctavScaling',
-    'NarrowIntShiftAddQuant']
+    'NarrowIntQuantShiftAdd']
 
 
 class MaxStatsScaling(ExtendedInjector):
@@ -207,6 +207,17 @@ class NarrowIntQuantPruningThreshold(ExtendedInjector):
     """
     """
     quant_type = QuantType.PRUNING
+    bit_width_impl_type = BitWidthImplType.CONST
+    float_to_int_impl_type = FloatToIntImplType.ROUND
+    pruning_impl_type = PruningImplType.THRESHOLD
+    narrow_range = True
+    signed = True
+    zero_point_impl = ZeroZeroPoint
+    
+class NarrowIntQuantShiftAdd(ExtendedInjector):
+    """
+    """
+    quant_type = QuantType.SHIFTADD
     bit_width_impl_type = BitWidthImplType.CONST
     float_to_int_impl_type = FloatToIntImplType.ROUND
     pruning_impl_type = PruningImplType.THRESHOLD
@@ -711,6 +722,3 @@ class OctavScaling(ExtendedInjector):
     scaling_impl_type = ScalingImplType.STATS
     scaling_stats_op = StatsOp.OCTAV
     max_iter = 30
-
-class NarrowIntShiftAddQuant(ExtendedInjector):
-    pass

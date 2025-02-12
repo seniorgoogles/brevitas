@@ -7,4 +7,3 @@ from .none import *
 from .scaled_int import *
 from .shifted_scaled_int import *
 from .ternary import *
-from .shiftadd import *
