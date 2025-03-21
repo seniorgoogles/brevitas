@@ -217,4 +217,4 @@ class Int8WeightPerTensorFixedPointShiftAdd(NarrowIntQuantShiftAdd,
                                     MaxStatsScaling,
                                     PerTensorPoTScaling8bit,
                                     WeightQuantSolver):
-    bit_width = 8
+    bit_width = 10
